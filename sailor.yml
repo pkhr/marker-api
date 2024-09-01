@@ -1,0 +1,9 @@
+apps:
+  - name: pdf2md
+    runtime: python
+    process:
+    
+      web: 
+        cmd: app:app
+        server_name: pdf2md
+        workers: 2
