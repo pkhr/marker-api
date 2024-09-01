@@ -1,8 +1,13 @@
 import os
 import tempfile
+import warnings
 from flask import Flask, request, jsonify
 from werkzeug.utils import secure_filename
 import shutil
+
+# Suppress specific warnings
+warnings.filterwarnings("ignore", category=FutureWarning, module="transformers.tokenization_utils_base")
+warnings.filterwarnings("ignore", category=FutureWarning, module="transformers.models.auto.image_processing_auto")
 
 from marker.convert import convert_single_pdf
 from marker.models import load_all_models
