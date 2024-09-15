@@ -3,3 +3,4 @@ Werkzeug
 marker-pdf
 gunicorn
 Pillow
+pypdfium2

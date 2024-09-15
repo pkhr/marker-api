@@ -2,10 +2,11 @@ import os
 import tempfile
 import warnings
 import base64
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from werkzeug.utils import secure_filename
 import shutil
 from io import BytesIO
+import pypdfium2 as pdfium  # Add this import
 
 # Suppress specific warnings
 warnings.filterwarnings("ignore", category=FutureWarning, module="transformers.tokenization_utils_base")
@@ -42,7 +43,6 @@ def encode_image(image):
     
     # Convert bytes to string and return
     return base64_encoded.decode('utf-8')
-    
 
 @app.route('/convert', methods=['POST'])
 def convert_pdf_to_markdown():
@@ -112,6 +112,56 @@ def convert_pdf_to_markdown():
             'success': False,
             'error': 'Allowed file types are PDF',
             'page_count': 0
+        }), 400
+
+@app.route('/preview', methods=['POST'])
+def preview_pdf():
+    if 'file' not in request.files:
+        return jsonify({'status': 'error', 'success': False, 'error': 'No file part in the request'}), 400
+    
+    file = request.files['file']
+    
+    if file.filename == '':
+        return jsonify({'status': 'error', 'success': False, 'error': 'No file selected for uploading'}), 400
+    
+    if file and file.filename.lower().endswith(('.pdf')):
+        filename = secure_filename(file.filename)
+        temp_dir = tempfile.mkdtemp()
+        try:
+            file_path = os.path.join(temp_dir, filename)
+            file.save(file_path)
+
+            # Open the PDF file
+            pdf = pdfium.PdfDocument(file_path)
+
+            # Load the first page
+            page = pdf[0]
+
+            # Render the page to a PIL Image
+            pil_image = page.render(scale=2).to_pil()
+
+            # Convert PIL Image to PNG
+            img_byte_arr = BytesIO()
+            pil_image.save(img_byte_arr, format='PNG')
+            img_byte_arr.seek(0)
+
+            return send_file(img_byte_arr, mimetype='image/png')
+
+        except Exception as e:
+            return jsonify({
+                'status': 'error',
+                'success': False,
+                'error': f'Preview generation failed: {str(e)}'
+            }), 500
+        
+        finally:
+            # Clean up temporary directory and its contents
+            shutil.rmtree(temp_dir, ignore_errors=True)
+    else:
+        return jsonify({
+            'status': 'error',
+            'success': False,
+            'error': 'Allowed file types are PDF'
         }), 400
 
 if __name__ == '__main__':
